@@ -1,0 +1,199 @@
+---
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    pandoc_args: [
+      "+RTS", "-K64m",
+      "-RTS"
+    ]
+runtime: shiny
+---
+
+```{r , include=FALSE}
+
+#install.packages("flexdashboard")
+#install.packages("DT")
+  library(flexdashboard)
+  library(jsonlite)
+  library(dplyr)
+  library(ggplot2)
+  library(highcharter)
+  library(geojsonio)
+  library(lubridate)
+  library(tabulizer)
+  library(stringr)
+  library(gsubfn)
+  library(DT)
+
+```
+
+
+```{r, include=FALSE}
+car_makes <- c("ACURA","AM GENERAL","AMERICAN IRONHORSE","APRILIA","ARCTIC CAT","ASTON MARTIN","ATK","AUDI","AVANTI","BENTLEY","BIG DOG","BIMOTA","BLUE BIRD","BMW","BOMBARDIER","BUELL","BUICK","CADILLAC","CANNONDALE","CHANCE COACH TRANSIT BUS","CHEVROLET","CHRYSLER","COBRA","DAEWOO","DODGE","DUCATI","E-TON","EL DORADO","FERRARI","FORD","FREIGHTLINER","GAS GAS","GILLIG","GMC","HARLEY DAVIDSON","HINO","HM","HONDA","HUSABERG","HUSQVARNA","HYUNDAI","INDIAN","INFINITI","INTERNATIONAL","ISUZU","JAGUAR","JEEP","KAWASAKI","KENWORTH","KIA","KTM","KYMCO","LAFORZA","LAMBORGHINI","LANDROVER","LEXUS","LINCOLN","LOTUS","MACK","MAZDA","MERCEDES-BENZ","MERCURY","MITSUBISHI","MITSUBISHI FUSO","MOTO GUZZI","MOTOR COACH INDUSTRIES","MV AGUSTA","NEW FLYER","NISSAN","NOVA BUS CORPORATION","OLDSMOBILE","ORION BUS","OSHKOSH MOTOR TRUCK CO.","OTTAWA","PANOZ","PETERBILT","PEUGEOT","PLYMOUTH","POLARIS","PONTIAC","PORSCHE","QVALE","RENAULT","ROLLS ROYCE","SAAB","SATURN","SEA-DOO","SEAT","SKI-DOO","STERLING","STERLING TRUCK","SUBARU","SUZUKI","TM","TOYOTA","TRIUMPH","UD","VICTORY","VOLKSWAGEN","VOLVO","WESTERN STAR","WORKHORSE","YAMAHA","ALFA ROMEO","AUTOCAR LLC.","COUNTRY COACH MOTORHOME","HUMMER","KASEA","LEM","MASERATI","MINI","MORGAN","SALEEN","WESTERN RV","MAYBACH","ROVER","VENTO","FIAT","JOHN DEERE","KUBOTA","SCION","SMART","VESPA","HYOSUNG","PIAGGIO","ARGO","BUGATTI","PIERCE MFG. INC.","AMERICAN LAFRANCE","CAN-AM","CRANE CARRIER","CUB CADET","BETA","BOBCAT","TESLA","RAM","VPG","CODA","FISKER","MCLAREN","SRT","BERTONE","IC CORPORATION","NASH")
+```
+
+
+```{r Feature extaction, include=FALSE}
+
+
+
+
+# The goal here is to run through all the folders and subfolders, read each PDF, extract the key features, and store into a data frame
+
+
+File_Name <- character()
+Vehicle_make <- character()
+Error_code_list <- list()
+Error_text_list <-  list()
+All_error_codes <- character()
+All_error_texts <- character()
+
+
+
+# Feature extraction
+
+i=1
+
+for (file_name in dir(path = "./Inputs/PDF/",pattern = "^.*Diagnostic.*\\.pdf",full.names=TRUE,recursive=TRUE)){
+  
+
+  
+  #Extract text from PDF
+  out_text <- extract_text(file_name)
+  #Basic text cleansing to enmable text recognition
+  out_text <- gsub("\\","", out_text,fixed=TRUE)
+  out_text_words <- unique(strsplit(paste(out_text, collapse = " "), ' ')[[1]])
+  out_text_words <- gsub("\r","",out_text_words)
+  out_text_words <- gsub("\n","",out_text_words)
+  
+  #Extract feature from cleansed text
+
+  error_codes <- as.vector(unique (grep(".....\\-\\d\\d", out_text_words, value=TRUE)))
+  car_make <- ifelse(length(intersect(out_text_words,car_makes)) == 0,"Not found",intersect(out_text_words,car_makes)) # to avoid zero length error
+  error_texts <- as.vector(unique(strapplyc(out_text, ".....\\-\\d\\d(.*?)(\r\n|\r|\n).*", simplify = c)))
+  
+  
+  
+  File_Name[i] <- file_name
+  Vehicle_make[i] <- car_make
+  Error_code_list[[length(Error_code_list)+1]] <- error_codes
+  Error_text_list[[length(Error_text_list)+1]] <- error_texts
+  All_error_codes <- c(All_error_codes,error_codes)
+  All_error_texts <- c(All_error_texts,error_texts)
+  
+  
+  i <- i+1
+  
+}
+
+features_df <- data.frame(cbind(File_Name,Vehicle_make,Error_code_list,Error_text_list))
+
+
+```
+
+
+```{r Selectors choices prep}
+
+car_makes_list <- c("ACURA","AM GENERAL","AMERICAN IRONHORSE","APRILIA","ARCTIC CAT","ASTON MARTIN","ATK","AUDI","AVANTI","BENTLEY","BIG DOG","BIMOTA","BLUE BIRD","BMW","BOMBARDIER","BUELL","BUICK","CADILLAC","CANNONDALE","CHANCE COACH TRANSIT BUS","CHEVROLET","CHRYSLER","COBRA","DAEWOO","DODGE","DUCATI","E-TON","EL DORADO","FERRARI","FORD","FREIGHTLINER","GAS GAS","GILLIG","GMC","HARLEY DAVIDSON","HINO","HM","HONDA","HUSABERG","HUSQVARNA","HYUNDAI","INDIAN","INFINITI","INTERNATIONAL","ISUZU","JAGUAR","JEEP","KAWASAKI","KENWORTH","KIA","KTM","KYMCO","LAFORZA","LAMBORGHINI","LANDROVER","LEXUS","LINCOLN","LOTUS","MACK","MAZDA","MERCEDES-BENZ","MERCURY","MITSUBISHI","MITSUBISHI FUSO","MOTO GUZZI","MOTOR COACH INDUSTRIES","MV AGUSTA","NEW FLYER","NISSAN","NOVA BUS CORPORATION","OLDSMOBILE","ORION BUS","OSHKOSH MOTOR TRUCK CO.","OTTAWA","PANOZ","PETERBILT","PEUGEOT","PLYMOUTH","POLARIS","PONTIAC","PORSCHE","QVALE","RENAULT","ROLLS ROYCE","SAAB","SATURN","SEA-DOO","SEAT","SKI-DOO","STERLING","STERLING TRUCK","SUBARU","SUZUKI","TM","TOYOTA","TRIUMPH","UD","VICTORY","VOLKSWAGEN","VOLVO","WESTERN STAR","WORKHORSE","YAMAHA","ALFA ROMEO","AUTOCAR LLC.","COUNTRY COACH MOTORHOME","HUMMER","KASEA","LEM","MASERATI","MINI","MORGAN","SALEEN","WESTERN RV","MAYBACH","ROVER","VENTO","FIAT","JOHN DEERE","KUBOTA","SCION","SMART","VESPA","HYOSUNG","PIAGGIO","ARGO","BUGATTI","PIERCE MFG. INC.","AMERICAN LAFRANCE","CAN-AM","CRANE CARRIER","CUB CADET","BETA","BOBCAT","TESLA","RAM","VPG","CODA","FISKER","MCLAREN","SRT","BERTONE","IC CORPORATION","NASH")
+
+error_code_list <- Error_code_list
+
+
+```
+
+
+
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+Select period, operators and terminals below :
+
+
+```{r Car Make selection}
+
+
+      selectizeInput("car_make_selection", label = "Car Make:",
+                        choices = car_makes_list, selected = "BMW",
+                     options = list(maxItems = 3, placeholder = 'please enter make here',multiple = TRUE))
+
+```
+
+```{r Error code selection}
+      selectInput("error_code_selection", label = "Error Code:",
+                  choices = All_error_codes, selected = NULL,
+                  options = list(maxItems = 3, placeholder = 'please enter error codes here',multiple = TRUE))
+
+```
+
+```{r Error text selection }
+
+  selectizeInput("error_text_selection",label = "Error Text:",
+                  choices = All_error_texts , selected = NULL,
+                 options = list(maxItems = 3, placeholder = 'please enter error text here',multiple = TRUE))
+
+```
+
+
+
+
+
+Column   
+-----------------------------------------------------------------------
+
+### List of relevant files
+
+
+```{r Build table corresponding to search terms}
+
+# Handle cases when selection is blank
+
+build_query_result_table <- function(input_make_selection,input_error_code_selection,input_error_text_selection){
+  
+  if(length(input_make_selection) == 0){
+    
+        query_result_table <- features_df %>% 
+           filter(input$car_make_selection == Vehicle_make &&
+           input$error_code_selection %in% Error_code_list &&
+           input$error_text_selection %in% Error_text_list)
+    
+  }
+  
+  if(length(input_make_selection) == 0){
+    
+        query_result_table <- features_df %>% 
+           filter(input$car_make_selection == Vehicle_make &&
+           input$error_code_selection %in% Error_code_list &&
+           input$error_text_selection %in% Error_text_list)
+    
+  }
+  
+  if(length(input_make_selection) == 0){
+    
+        query_result_table <- features_df %>% 
+           filter(input$car_make_selection == Vehicle_make &&
+           input$error_code_selection %in% Error_code_list &&
+           input$error_text_selection %in% Error_text_list)
+    
+  }
+  
+  
+}
+renderDataTable({
+
+  #Subset data frame based on user selection  
+  
+  
+
+ 
+ 
+ # Build and Display in DT
+ 
+ dt <- datatable(query_result_table)
+ 
+ return(dt)
+ 
+
+})
+

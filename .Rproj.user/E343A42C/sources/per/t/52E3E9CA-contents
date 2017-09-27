@@ -1,0 +1,141 @@
+---
+title: "Autel EDA"
+author: "Samy"
+date: "13 September 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+  #install.packages("RPostgreSQL")
+  require("RPostgreSQL")
+
+ 
+  library(jsonlite)
+  library(dplyr)
+  library(ggplot2)
+  library(highcharter)
+  library(geojsonio)
+  library(lubridate)
+  
+
+```
+
+```{r Load JSON data fro Redshift}
+
+  #Initialise connection
+  drv <- dbDriver("PostgreSQL")
+  con <-dbConnect(drv,dbname="dev",host="redjson.cih6vs0jk7a3.eu-west-1.redshift.amazonaws.com",port=5439,
+                user="redjsonuser",password="Redjsonpass1")
+  
+  
+  #Get list of all available tables
+  
+  red_table_list <- dbGetQuery(con, "select relname from pg_class where relkind='r' and relname !~ '^(pg_|sql_)';") %>% 
+    mutate(prefix = substr(relname,1,3))
+   # filter(prefix %in% c("red"))
+  head(red_table_list)
+  
+  #Query one specific table
+  table_ex <-  dbGetQuery(conn = con,statement = "SELECT * FROM stl_s3client")
+  str(table_ex)
+  
+  dbDisconnect(con)
+
+
+
+
+```
+
+```{r Extract data from PDF}
+
+#Installing tabula R bindings 
+
+install.packages("ghit",repos='http://cran.us.r-project.org') 
+library(ghit)
+#ghit::install_github(c("leeper/tabulizerjars", "leeper/tabulizer"), INSTALL_opts = "--no-multiarch", dependencies = c("Depends", "Imports"))
+ghit::install_github(c("leeper/tabulizerjars", "leeper/tabulizer"), INSTALL_opts = "--no-multiarch", dependencies = c("Depends", "Imports"))
+install.packages("gsubfn")
+
+library(tabulizer)
+library(stringr)
+library(gsubfn)
+
+#List of all car makes
+
+car_makes <- c("ACURA","AM GENERAL","AMERICAN IRONHORSE","APRILIA","ARCTIC CAT","ASTON MARTIN","ATK","AUDI","AVANTI","BENTLEY","BIG DOG","BIMOTA","BLUE BIRD","BMW","BOMBARDIER","BUELL","BUICK","CADILLAC","CANNONDALE","CHANCE COACH TRANSIT BUS","CHEVROLET","CHRYSLER","COBRA","DAEWOO","DODGE","DUCATI","E-TON","EL DORADO","FERRARI","FORD","FREIGHTLINER","GAS GAS","GILLIG","GMC","HARLEY DAVIDSON","HINO","HM","HONDA","HUSABERG","HUSQVARNA","HYUNDAI","INDIAN","INFINITI","INTERNATIONAL","ISUZU","JAGUAR","JEEP","KAWASAKI","KENWORTH","KIA","KTM","KYMCO","LAFORZA","LAMBORGHINI","LANDROVER","LEXUS","LINCOLN","LOTUS","MACK","MAZDA","MERCEDES-BENZ","MERCURY","MITSUBISHI","MITSUBISHI FUSO","MOTO GUZZI","MOTOR COACH INDUSTRIES","MV AGUSTA","NEW FLYER","NISSAN","NOVA BUS CORPORATION","OLDSMOBILE","ORION BUS","OSHKOSH MOTOR TRUCK CO.","OTTAWA","PANOZ","PETERBILT","PEUGEOT","PLYMOUTH","POLARIS","PONTIAC","PORSCHE","QVALE","RENAULT","ROLLS ROYCE","SAAB","SATURN","SEA-DOO","SEAT","SKI-DOO","STERLING","STERLING TRUCK","SUBARU","SUZUKI","TM","TOYOTA","TRIUMPH","UD","VICTORY","VOLKSWAGEN","VOLVO","WESTERN STAR","WORKHORSE","YAMAHA","ALFA ROMEO","AUTOCAR LLC.","COUNTRY COACH MOTORHOME","HUMMER","KASEA","LEM","MASERATI","MINI","MORGAN","SALEEN","WESTERN RV","MAYBACH","ROVER","VENTO","FIAT","JOHN DEERE","KUBOTA","SCION","SMART","VESPA","HYOSUNG","PIAGGIO","ARGO","BUGATTI","PIERCE MFG. INC.","AMERICAN LAFRANCE","CAN-AM","CRANE CARRIER","CUB CADET","BETA","BOBCAT","TESLA","RAM","VPG","CODA","FISKER","MCLAREN","SRT","BERTONE","IC CORPORATION","NASH")
+
+
+# Extracting text and individual words from PDF
+out_text <- extract_text("./Inputs/PDF/ Diagnostic Report sn09nxv.pdf")
+out_text <- gsub("\\","", out_text,fixed=TRUE)
+out_text_words <- unique(strsplit(paste(out_text, collapse = " "), ' ')[[1]])
+out_text_words <- gsub("\r","",out_text_words)
+out_text_words <- gsub("\n","",out_text_words)
+
+#Find matches corresponding to error codes & car make
+
+
+error_codes <- as.vector(unique (grep(".....\\-\\d\\d", out_text_words, value=TRUE)))
+car_make <- intersect(out_text_words,car_makes)
+#error_textx <- gsub(".*.....\\-\\d\\d | (\r\n|\r|\n).*","",out_text)
+error_texts <- as.vector(unique(strapplyc(out_text, ".....\\-\\d\\d(.*?)(\r\n|\r|\n).*", simplify = c)))
+
+summary_data <- c("YK64 XVX.pdf",list(error_codes),list(error_texts),car_make)
+
+
+dir(path = "./Inputs/PDF/",pattern = NULL,full.names=TRUE,recursive=TRUE)
+
+
+```
+
+```{r Loop through folders and create a table with key features}
+
+# The goal here is to run through all the folders and subfolders, read each PDF, extract the key features, and store into a data frame
+
+
+File_Name <- character()
+Vehicle_make <- character()
+Error_code_list <- list()
+Error_text_list <-  list()
+
+
+# Feature extraction
+
+d = NULL
+i=1
+
+for (file_name in dir(path = "./Inputs/PDF/",pattern = NULL,full.names=TRUE,recursive=TRUE)){
+  
+  #Extract text from PDF
+  out_text <- extract_text(file_name)
+  #Basic text cleansing to enmable text recognition
+  out_text <- gsub("\\","", out_text,fixed=TRUE)
+  out_text_words <- unique(strsplit(paste(out_text, collapse = " "), ' ')[[1]])
+  out_text_words <- gsub("\r","",out_text_words)
+  out_text_words <- gsub("\n","",out_text_words)
+  
+  #Extract feature from cleansed text
+
+  error_codes <- as.vector(unique (grep(".....\\-\\d\\d", out_text_words, value=TRUE)))
+  car_make <- intersect(out_text_words,car_makes)
+  error_texts <- as.vector(unique(strapplyc(out_text, ".....\\-\\d\\d(.*?)(\r\n|\r|\n).*", simplify = c)))
+  
+  
+  
+  File_Name[i] <- file_name
+  Vehicle_make[i] <- car_make
+  Error_code_list[[length(Error_code_list)+1]] <- error_codes
+  
+  
+  i <- i+1
+  
+}
+
+features_df <- data.frame(cbind(File_Name,Vehicle_make,Error_code_list))
+
+
+
+
+```
+

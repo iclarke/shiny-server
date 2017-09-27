@@ -1,0 +1,148 @@
+Array
+(
+    [language] => en
+    [type] => 2
+    [technician_lon] => -1.80400011
+    [technician_lat] => 52.68692331
+    [diagnosis_time] => 1504630252
+    [diagnosis_start_time] => 1504630244
+    [fault_codes] =>
+    [conclusion] =>
+    [messagelist] => Array
+        (
+            [0] => Array
+                (
+                    [item] => Automatically Search >
+                )
+ 
+            [1] => Array
+                (
+                    [item] => Automatically Search > Notice:
+1.If equipped with two socket, 20-pin and 16-pin, please use [BMW-20] connector.
+                )
+ 
+            [2] => Array
+                (
+                    [item] => Automatically Search >
+                )
+ 
+            [3] => Array
+                (
+                    [item] => Automatically Search > Select [BMW-20] connector
+                )
+ 
+            [4] => Array
+                (
+                    [item] => Automatically Search >
+                )
+ 
+            [5] => Array
+                (
+                    [item] => Automatically Search > Health Report >
+                )
+ 
+            [6] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) >
+                )
+ 
+            [7] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) > Release Version : V49.77
+S82905 - DSC
+VIN :                         PW69007
+Part Number :                       6772214
+Coding Index :                      07
+Diagnosis Index :                   05B0
+Variant Index :                     4842
+Hardware Number :                   06
+Date, DD.MM.YYYY :                  20.08.2005
+ 
+If have problem, please print or record the above information!
+ 
+                )
+ 
+            [8] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) >
+                )
+ 
+            [9] => Array
+                (
+                    [item] => Automatically Search > Health Report >
+                )
+ 
+            [10] => Array
+                (
+                    [item] => Automatically Search > Health Report > Are you sure to clear all the system fault memory?
+Indicator and warning lights may be extinguished by a try driving in existence of some special failure
+                )
+ 
+            [11] => Array
+                (
+                    [item] => Automatically Search > Health Report >
+                )
+ 
+            [12] => Array
+                (
+                    [item] => Automatically Search > Health Report > Clear fault memory completed.
+                )
+ 
+            [13] => Array
+                (
+                    [item] => Automatically Search > Health Report >
+                )
+ 
+            [14] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) >
+                )
+ 
+            [15] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) > Release Version : V49.77
+S82905 - DSC
+VIN :                         PW69007
+Part Number :                       6772214
+Coding Index :                      07
+Diagnosis Index :                   05B0
+Variant Index :                     4842
+Hardware Number :                   06
+Date, DD.MM.YYYY :                  20.08.2005
+ 
+If have problem, please print or record the above information!
+ 
+                )
+ 
+            [16] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) >
+                )
+ 
+            [17] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) > Are you sure to clear fault memory?
+Indicator and warning lights may be extinguished by a try driving in existence of some special failure.
+                )
+ 
+            [18] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) > Clear fault memory completed.
+                )
+ 
+            [19] => Array
+                (
+                    [item] => Automatically Search > Health Report > ABS (Anti-lock Braking System - DSC) >
+                )
+ 
+        )
+ 
+    [pro_serial_no] => 985194571600
+    [vin] => WBAUG52090PW69007
+    [mileage] => 241188
+    [theme] => BMWDiagnostic Report
+    [cars] => BMW
+)
+ 
+ 
+ 
