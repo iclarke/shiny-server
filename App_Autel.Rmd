@@ -11,7 +11,8 @@ runtime: shiny
 ---
 
 ```{r , include=FALSE}
-  library(rJava)
+
+  #library(rJava)
   library(flexdashboard)
   library(dplyr)
   library(ggplot2)
@@ -31,8 +32,6 @@ car_makes <- c("ACURA","AM GENERAL","AMERICAN IRONHORSE","APRILIA","ARCTIC CAT",
 
 
 ```{r Feature extaction, include=FALSE}
-
-
 
 
 # The goal here is to run through all the folders and subfolders, read each PDF, extract the key features, and store into a data frame
