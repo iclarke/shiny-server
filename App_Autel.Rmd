@@ -14,17 +14,16 @@ runtime: shiny
 
 #install.packages("flexdashboard")
 #install.packages("DT")
+
   library(flexdashboard)
-  library(jsonlite)
   library(dplyr)
   library(ggplot2)
-  library(highcharter)
-  library(geojsonio)
   library(lubridate)
   library(tabulizer)
   library(stringr)
   library(gsubfn)
   library(DT)
+  library(stringr)
 
 ```
 
@@ -48,6 +47,8 @@ Error_code_list <- list()
 Error_text_list <-  list()
 All_error_codes <- character()
 All_error_texts <- character()
+VIN_number <- character()
+
 
 
 
@@ -69,14 +70,30 @@ for (file_name in dir(path = "./Inputs/PDF/",pattern = "^.*Diagnostic.*\\.pdf",f
   
   #Extract feature from cleansed text
 
-  error_codes <- as.vector(unique (grep(".....\\-\\d\\d", out_text_words, value=TRUE)))
+  error_codes <- as.vector(unique (grep("[A-Z]....\\-\\d\\d", out_text_words, value=TRUE)))
   car_make <- ifelse(length(intersect(out_text_words,car_makes)) == 0,"Not found",intersect(out_text_words,car_makes)) # to avoid zero length error
-  error_texts <- as.vector(unique(strapplyc(out_text, ".....\\-\\d\\d(.*?)(\r\n|\r|\n).*", simplify = c)))
+  error_texts <- as.vector(unique(strapplyc(out_text, "[A-Z]....\\-\\d\\d(.*?)(\r\n|\r|\n).*", simplify = c))) # Assumes 1st char error code is letter
+  error_texts <- ifelse(length(error_texts)==0,"NA",error_texts)
+  error_codes <- ifelse(length(error_codes)==0,"NA",error_codes)
+  
+  error_texts <- error_texts[nchar(error_texts)>2] #Retaining only elements with at least 3 characters
+  VIN_number_text <- as.vector(unique(strapplyc(out_text, "VIN:(.*?)(\r\n|\r|\n).*", simplify = c))) # Regex would need improving to avoid next line
+  VIN_number_text <- VIN_number_text[nchar(VIN_number_text)>2]
+  
+  
+  test_time_text <- as.vector(unique(strapplyc(out_text, "Test Time: (.*?)(\r\n|\r|\n).*", simplify = c)))
+  test_time_text <- test_time_text[nchar(test_time_text) >2]
+  test_time_text <- as.POSIXct(test_time_text,format = "%Y-%M-%M %H:%M:%S")
+
+
   
   
   
   File_Name[i] <- file_name
   Vehicle_make[i] <- car_make
+  VIN_number[i] <- ifelse(length(VIN_number_text) == 0,"NA",VIN_number_text)
+  Test_time[i] <- test_time_text
+  
   Error_code_list[[length(Error_code_list)+1]] <- error_codes
   Error_text_list[[length(Error_text_list)+1]] <- error_texts
   All_error_codes <- c(All_error_codes,error_codes)
@@ -87,9 +104,11 @@ for (file_name in dir(path = "./Inputs/PDF/",pattern = "^.*Diagnostic.*\\.pdf",f
   
 }
 
-features_df <- data.frame(cbind(File_Name,Vehicle_make,Error_code_list,Error_text_list))
+Error_code_list
 
-
+features_df <- cbind(File_Name,Vehicle_make,VIN_number,Error_code_list,Error_text_list)
+features_df <- as.data.frame(features_df)
+features_df <- data.frame(features_df,Test_time)  # Problem here as vector of lists seem to have bigger length.
 ```
 
 
@@ -121,7 +140,7 @@ Select period, operators and terminals below :
 ```
 
 ```{r Error code selection}
-      selectInput("error_code_selection", label = "Error Code:",
+      selectizeInput("error_code_selection", label = "Error Code:",
                   choices = All_error_codes, selected = NULL,
                   options = list(maxItems = 3, placeholder = 'please enter error codes here',multiple = TRUE))
 
@@ -151,42 +170,48 @@ Column
 
 build_query_result_table <- function(input_make_selection,input_error_code_selection,input_error_text_selection){
   
-  if(length(input_make_selection) == 0){
+  len_make = length(input_make_selection)
+  len_error_code = length(input_error_code_selection)
+  len_error_text = length(input_error_text_selection)
+  
+  
+  
+  if (len_error_text == 0){
     
-        query_result_table <- features_df %>% 
-           filter(input$car_make_selection == Vehicle_make &&
-           input$error_code_selection %in% Error_code_list &&
-           input$error_text_selection %in% Error_text_list)
+    input_error_text_selection <- features_df$Error_text_list
     
   }
   
-  if(length(input_make_selection) == 0){
+  if(len_make == 0){
     
-        query_result_table <- features_df %>% 
-           filter(input$car_make_selection == Vehicle_make &&
-           input$error_code_selection %in% Error_code_list &&
-           input$error_text_selection %in% Error_text_list)
+    input_make_selection <- features_df$Vehicle_make
     
   }
-  
-  if(length(input_make_selection) == 0){
+
+  if(len_error_code == 0){
     
-        query_result_table <- features_df %>% 
-           filter(input$car_make_selection == Vehicle_make &&
-           input$error_code_selection %in% Error_code_list &&
-           input$error_text_selection %in% Error_text_list)
-    
+    input_error_code_selection <- features_df$Error_code_list
   }
   
+  
+  query_result_table <- features_df %>% 
+    filter(Vehicle_make %in% input_make_selection,
+           Error_code_list %in% input_error_code_selection,
+           Error_text_list %in% input_error_text_selection)%>% 
+    select(File_Name,Test_time,Vehicle_make,VIN_number)
+  
+  
+  return(query_result_table)
   
 }
+
+
 renderDataTable({
 
   #Subset data frame based on user selection  
   
+  query_result_table <- build_query_result_table(input$car_make_selection,input$error_code_selection, input$error_text_selection) 
   
-
- 
  
  # Build and Display in DT
  
