@@ -88,7 +88,7 @@ for (file_name in dir(path = "./Inputs/PDF/",pattern = "^.*Diagnostic.*\\.pdf",f
   File_Name[i] <- file_name
   Vehicle_make[i] <- car_make
   VIN_number[i] <- ifelse(length(VIN_number_text) == 0,"NA",VIN_number_text)
-  Test_time[i] <- test_time_text
+ # Test_time[i] <- test_time_text
   
   Error_code_list[[length(Error_code_list)+1]] <- error_codes
   Error_text_list[[length(Error_text_list)+1]] <- error_texts
@@ -194,7 +194,7 @@ build_query_result_table <- function(input_make_selection,input_error_code_selec
     filter(Vehicle_make %in% input_make_selection,
            Error_code_list %in% input_error_code_selection,
            Error_text_list %in% input_error_text_selection)%>% 
-    select(File_Name,Test_time,Vehicle_make,VIN_number)
+    select(File_Name,Vehicle_make,VIN_number)
   
   
   return(query_result_table)
