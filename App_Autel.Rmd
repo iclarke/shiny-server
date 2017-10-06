@@ -11,10 +11,7 @@ runtime: shiny
 ---
 
 ```{r , include=FALSE}
-
-#install.packages("flexdashboard")
-#install.packages("DT")
-
+  library(rJava)
   library(flexdashboard)
   library(dplyr)
   library(ggplot2)
