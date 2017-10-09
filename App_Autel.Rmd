@@ -33,17 +33,18 @@ car_makes <- c("ACURA","AM GENERAL","AMERICAN IRONHORSE","APRILIA","ARCTIC CAT",
 
 ```{r Feature extaction, include=FALSE}
 
-
 # The goal here is to run through all the folders and subfolders, read each PDF, extract the key features, and store into a data frame
 
 
 File_Name <- character()
 Vehicle_make <- character()
-Error_code_list <- list()
-Error_text_list <-  list()
+Error_code_list <- character()
+Error_text_list <-  character()
 All_error_codes <- character()
 All_error_texts <- character()
 VIN_number <- character()
+Reg_number <- character()
+Date_diagnostic <- .POSIXct(character())
 
 
 
@@ -66,20 +67,50 @@ for (file_name in dir(path = "./Inputs/PDF/",pattern = "^.*Diagnostic.*\\.pdf",f
   
   #Extract feature from cleansed text
 
-  error_codes <- as.vector(unique (grep("[A-Z]....\\-\\d\\d", out_text_words, value=TRUE)))
-  car_make <- ifelse(length(intersect(out_text_words,car_makes)) == 0,"Not found",intersect(out_text_words,car_makes)) # to avoid zero length error
-  error_texts <- as.vector(unique(strapplyc(out_text, "[A-Z]....\\-\\d\\d(.*?)(\r\n|\r|\n).*", simplify = c))) # Assumes 1st char error code is letter
-  error_texts <- ifelse(length(error_texts)==0,"NA",error_texts)
-  error_codes <- ifelse(length(error_codes)==0,"NA",error_codes)
+  error_codes <- as.vector(unique (grep("[A-Z]....\\-\\d\\d", out_text_words, value=TRUE))) # First pattern for error codes
+  error_codes_add <- as.vector(unique (grep("[A-Z]\\d\\d\\d", out_text_words, value=TRUE))) # Another pattern for error codes
+  error_codes_add <- error_codes_add[nchar(error_codes_add)==5] #Removing incorrect matched for pattern 2
+  error_codes <- c(error_codes,error_codes_add) # Merging into a single vector
   
-  error_texts <- error_texts[nchar(error_texts)>2] #Retaining only elements with at least 3 characters
-  VIN_number_text <- as.vector(unique(strapplyc(out_text, "VIN:(.*?)(\r\n|\r|\n).*", simplify = c))) # Regex would need improving to avoid next line
+  #Retrieveing car make
+  car_make <- ifelse(length(intersect(out_text_words,car_makes)) == 0,
+                     "Not found",
+                     intersect(out_text_words,car_makes)) # to avoid zero length error
+  
+  #Retrieving error text and code lists
+  error_texts <- as.vector(
+    unique(
+      strapplyc(out_text, "[A-Z]....\\-\\d\\d(.*?)(\r\n|\r|\n).*", simplify = c))) # Assumes 1st char error code is letter
+  
+  #error_texts <- ifelse(length(error_texts)==0,"NA",error_texts)
+  #error_codes <- ifelse(length(error_codes)==0,"NA",error_codes)
+  error_texts <- error_texts[nchar(error_texts)>2] # Retaining only elements with at least 3 characters
+  
+  #Retrieve VIN number
+  VIN_number_text <- as.vector(
+    unique(
+      strapplyc(out_text, "VIN:(.*?)(\r\n|\r|\n).*", simplify = c))) # Regex would need improving to avoid next line
+  
   VIN_number_text <- VIN_number_text[nchar(VIN_number_text)>2]
+  VIN_number[i] <- ifelse(length(VIN_number_text) == 0,"NA",VIN_number_text)
+  
+  #Registration plate number
   
   
+  Reg_number_text <- as.vector(
+    unique(
+      strapplyc(out_text, "License #:(.*?)(\r\n|\r|\n).*", simplify = c)))
+  
+  Reg_number_text <- Reg_number_text[1]
+  Reg_number_text <- ifelse(is.na(Reg_number_text) ,
+                            "Not found",
+                            Reg_number_text) #If the Reg is not in the file it may be in the file name
+  
+  
+  # Date and time of diagnostic
   test_time_text <- as.vector(unique(strapplyc(out_text, "Test Time: (.*?)(\r\n|\r|\n).*", simplify = c)))
   test_time_text <- test_time_text[nchar(test_time_text) >2]
-  test_time_text <- as.POSIXct(test_time_text,format = "%Y-%M-%M %H:%M:%S")
+  test_time_text <- as.POSIXct(test_time_text,format = "%Y-%m-%d %H:%M:%S")
 
 
   
@@ -87,11 +118,10 @@ for (file_name in dir(path = "./Inputs/PDF/",pattern = "^.*Diagnostic.*\\.pdf",f
   
   File_Name[i] <- file_name
   Vehicle_make[i] <- car_make
-  VIN_number[i] <- ifelse(length(VIN_number_text) == 0,"NA",VIN_number_text)
- # Test_time[i] <- test_time_text
-  
-  Error_code_list[[length(Error_code_list)+1]] <- error_codes
-  Error_text_list[[length(Error_text_list)+1]] <- error_texts
+  Date_diagnostic[i] <- test_time_text
+  Reg_number[i] <- Reg_number_text
+  Error_code_list[i] <- paste(error_codes,collapse = "")
+  Error_text_list[i] <- paste(error_texts,collapse = "")
   All_error_codes <- c(All_error_codes,error_codes)
   All_error_texts <- c(All_error_texts,error_texts)
   
@@ -101,10 +131,11 @@ for (file_name in dir(path = "./Inputs/PDF/",pattern = "^.*Diagnostic.*\\.pdf",f
 }
 
 
-
-features_df <- cbind(File_Name,Vehicle_make,VIN_number,Error_code_list,Error_text_list)
+features_df <- cbind(File_Name,Vehicle_make,VIN_number,Error_code_list,Error_text_list,Reg_number)
 features_df <- as.data.frame(features_df)
-#features_df <- data.frame(features_df,Test_time)  # Problem here as vector of lists seem to have bigger length.
+features_df$Diagnostic_time <- Date_diagnostic
+
+
 ```
 
 
@@ -130,23 +161,21 @@ Select period, operators and terminals below :
 
 
       selectizeInput("car_make_selection", label = "Car Make:",
-                        choices = car_makes_list, selected = "BMW",
-                     options = list(maxItems = 3, placeholder = 'please enter make here',multiple = TRUE))
+                     choices = car_makes_list,multiple = TRUE)
 
 ```
 
 ```{r Error code selection}
+
       selectizeInput("error_code_selection", label = "Error Code:",
-                  choices = All_error_codes, selected = NULL,
-                  options = list(maxItems = 3, placeholder = 'please enter error codes here',multiple = TRUE))
+                  choices = All_error_codes, multiple = TRUE)
 
 ```
 
 ```{r Error text selection }
 
-  selectizeInput("error_text_selection",label = "Error Text:",
-                  choices = All_error_texts , selected = NULL,
-                 options = list(maxItems = 3, placeholder = 'please enter error text here',multiple = TRUE))
+      selectizeInput("error_text_selection",label = "Error Text:",
+                  choices = All_error_texts ,multiple = TRUE)
 
 ```
 
@@ -166,37 +195,96 @@ Column
 
 build_query_result_table <- function(input_make_selection,input_error_code_selection,input_error_text_selection){
   
-  len_make = length(input_make_selection)
-  len_error_code = length(input_error_code_selection)
-  len_error_text = length(input_error_text_selection)
+  len_make <- ifelse(is.null(input_make_selection) ,0,1)
+  len_error_code <-  ifelse(is.null(input_error_code_selection) ,0,1)
+  len_error_text <-  ifelse(is.null(input_error_text_selection) ,0,1)
+  
+  #---------
+  #Accounting for blak fields
+  
+  if(len_make == 0 && len_error_code == 0 && len_error_text ==0 ){
+  
+  query_result_table <- features_df
+      
+  #,Reg_number
   
   
-  
-  if (len_error_text == 0){
-    
-    input_error_text_selection <- features_df$Error_text_list
-    
   }
   
-  if(len_make == 0){
-    
-    input_make_selection <- features_df$Vehicle_make
-    
-  }
-
-  if(len_error_code == 0){
-    
-    input_error_code_selection <- features_df$Error_code_list
+  if(len_make == 0 & len_error_code == 0 & len_error_text >0 ){
+  
+    query_result_table <- features_df %>% 
+      filter(str_detect(Error_text_list,paste(input_error_text_selection,collapse = '|')))
+  #,Reg_number
+  
+  
   }
   
+  if(len_make == 0 && len_error_code > 0 && len_error_text == 0 ){
   
-  query_result_table <- features_df %>% 
-    filter(Vehicle_make %in% input_make_selection,
-           Error_code_list %in% input_error_code_selection,
-           Error_text_list %in% input_error_text_selection)%>% 
-    select(File_Name,Vehicle_make,VIN_number)
+    query_result_table <- features_df %>% 
+      filter(str_detect(Error_code_list,paste(input_error_code_selection,collapse = '|')))
+  #,Reg_number
+  
+  }
+  
+  if(len_make > 0 && len_error_code > 0 && len_error_text == 0 ){
+  
+    query_result_table <- features_df %>% 
+      filter(str_detect(Vehicle_make,paste(input_make_selection,collapse = '|')) &
+           str_detect(Error_code_list,paste(input_error_code_selection,collapse = '|')))
+  #,Reg_number
   
   
+  }
+  
+  if(len_make > 0 && len_error_code == 0 && len_error_text > 0 ){
+  
+    query_result_table <- features_df %>% 
+      filter(str_detect(Vehicle_make,paste(input_make_selection,collapse = '|')) &
+           str_detect(Error_text_list,paste(input_error_code_selection,collapse = '|')))
+  
+  }
+  
+  
+  if(len_make > 0 && len_error_code == 0 && len_error_text == 0 ){
+  
+    query_result_table <- features_df %>% 
+      filter(str_detect(Vehicle_make,paste(input_make_selection,collapse = '|')))%>% 
+      select(File_Name,Vehicle_make,Diagnostic_time) %>% 
+      as.data.frame()
+  #,Reg_number
+  
+  }
+  
+  
+   if(len_make == 0 && len_error_code > 0 && len_error_text > 0 ){
+  
+    query_result_table <- features_df %>% 
+    filter(str_detect(Error_text_list,paste(input_error_text_selection,collapse = '|')) &
+           str_detect(Error_code_list,paste(input_error_code_selection,collapse = '|')))
+  
+  }
+  
+  
+  if(len_make > 0 && len_error_code > 0 && len_error_text > 0 ){
+  
+    query_result_table <- features_df %>% 
+    filter(str_detect(Vehicle_make,paste(input_make_selection,collapse = '|')) &
+           str_detect(Error_text_list,paste(input_error_text_selection,collapse = '|')) &
+           str_detect(Error_code_list,paste(input_error_code_selection,collapse = '|')))
+  
+  }
+  
+  
+  #url_prefix = "https://www.dropbox.com/home/THEAA/Shared with me/"
+  url_prefix <- "./Inputs/PDF/"
+  
+  query_result_table <- query_result_table %>% 
+    #mutate(LinkToFile =paste0("<a href = '","Diagnostic Report sn09nxv.pdf","'>","Open file", "</a>"))
+    #mutate(linktofile = a("click on me",href="Diagnostic Report sn09nxv.pdf"))
+    mutate(linktofile  = "<a href='Diagnostic Report sn09nxv.pdf' target='blank' >MyFile</a>")
+           
   return(query_result_table)
   
 }
@@ -211,7 +299,7 @@ renderDataTable({
  
  # Build and Display in DT
  
- dt <- datatable(query_result_table)
+ dt <- datatable(query_result_table,escape = FALSE)
  
  return(dt)
  
