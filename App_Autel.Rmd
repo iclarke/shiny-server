@@ -304,5 +304,5 @@ renderDataTable({
  return(dt)
  
 
-})
+},escape = FALSE)
 
