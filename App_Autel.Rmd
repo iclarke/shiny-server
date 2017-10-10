@@ -283,7 +283,7 @@ build_query_result_table <- function(input_make_selection,input_error_code_selec
   query_result_table <- query_result_table %>% 
     #mutate(LinkToFile =paste0("<a href = '","Diagnostic Report sn09nxv.pdf","'>","Open file", "</a>"))
     #mutate(linktofile = a("click on me",href="Diagnostic Report sn09nxv.pdf"))
-    mutate(linktofile  = "<a href='Diagnostic Report sn09nxv.pdf' target='blank' >MyFile</a>")
+    mutate(linktofile  = "<a href='diagnostic_test_file.pdf' target='blank' >MyFile</a>")
            
   return(query_result_table)
   
